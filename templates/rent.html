@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Wypożycz - {{ car['brand'] }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Nawigacja -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Wypożyczalnia Aut</a>
+            <span class="navbar-text text-white">
+                Zalogowany jako: <strong>{{ session['user_name'] }}</strong>
+            </span>
+        </div>
+    </nav>
+
+    <div class="container col-md-5">
+        <div class="card shadow p-4 mt-5">
+            <h2 class="mb-4">Rezerwacja pojazdu</h2>
+            
+            <!-- Szczegóły wybranego auta -->
+            <div class="alert alert-info">
+                <h4>{{ car['brand'] }} {{ car['model'] }}</h4>
+                <p class="mb-0">Rocznik: {{ car['year'] }}</p>
+                <p class="mb-0">Cena: <strong>{{ car['price_per_day'] }} zł / dzień</strong></p>
+            </div>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <!-- Formularz dat -->
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Data wypożyczenia (od):</label>
+                    <input type="date" name="start_date" class="form-control" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Data zwrotu (do):</label>
+                    <input type="date" name="end_date" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mb-2">Zatwierdź i zapłać</button>
+                <a href="/" class="btn btn-secondary w-100">Anuluj i wróć</a>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
