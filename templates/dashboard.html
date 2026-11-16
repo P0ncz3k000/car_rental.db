@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Moje rezerwacje - Wypożyczalnia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Górny pasek nawigacji -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Wypożyczalnia Aut</a>
+            <div>
+                <span class="navbar-text me-3 text-white">
+                    Witaj, <strong>{{ session['user_name'] }}</strong>!
+                </span>
+                <a href="/" class="btn btn-outline-light me-2">Katalog aut</a>
+                <a href="/logout" class="btn btn-outline-danger">Wyloguj się</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Komunikaty flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} mb-4" role="alert">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Moje rezerwacje</h1>
+            <div class="card bg-white shadow-sm px-4 py-2">
+                <span class="text-muted">Łączny koszt wynajmów:</span>
+                <strong class="fs-4 text-primary">{{ "%.2f"|format(suma_wydatkow) }} zł</strong>
+            </div>
+        </div>
+
+        {% if rezerwacje %}
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-striped table-hover mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Samochód</th>
+                            <th>Rocznik</th>
+                            <th>Data odbioru</th>
+                            <th>Data zwrotu</th>
+                            <th>Koszt całkowity</th>
+                            <th class="text-end">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rezerwacje %}
+                        <tr>
+                            <td><strong>{{ r['brand'] }} {{ r['model'] }}</strong></td>
+                            <td>{{ r['year'] }}</td>
+                            <td>{{ r['start_date'] }}</td>
+                            <td>{{ r['end_date'] }}</td>
+                            <td><span class="badge bg-success fs-6">{{ "%.2f"|format(r['total_price']) }} zł</span></td>
+                            <td class="text-end">
+                                <form action="/cancel/{{ r['id'] }}" method="POST" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz anulować tę rezerwację?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Anuluj</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center p-5 shadow-sm">
+            <h4>Nie masz jeszcze żadnych rezerwacji.</h4>
+            <p class="mb-3">Wybierz samochód z naszej oferty i zarezerwuj go na wybrany termin.</p>
+            <a href="/" class="btn btn-primary">Przeglądaj dostępne auta</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

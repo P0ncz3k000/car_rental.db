@@ -8,20 +8,18 @@
 <body class="bg-light">
     <!-- Górny pasek z warunkowym przyciskiem -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="/">Wypożyczalnia Aut</a>
-            <div>
+        <div>
                 {% if session.get('user_name') %}
                     <span class="navbar-text me-3 text-white">
                         Witaj, <strong>{{ session['user_name'] }}</strong>!
                     </span>
+                    <a href="/dashboard" class="btn btn-outline-info me-2">Moje rezerwacje</a>
                     <a href="/logout" class="btn btn-outline-danger">Wyloguj się</a>
                 {% else %}
                     <a href="/login" class="btn btn-outline-light me-2">Zaloguj się</a>
                     <a href="/register" class="btn btn-success">Zarejestruj się</a>
                 {% endif %}
             </div>
-        </div>
     </nav>
 
     <div class="container">

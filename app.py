@@ -14,14 +14,12 @@ def get_db_connection():
 @app.route('/')
 def strona_glowna():
     conn = get_db_connection()
-    # Dodaliśmy pobieranie "id", aby wiedzieć, które auto kliknął użytkownik
     auta = conn.execute("SELECT id, brand, model, year, price_per_day FROM cars").fetchall()
     conn.close()
     return render_template('index.html', auta=auta)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # ... (kod pozostaje bez zmian z Tygodnia 5) ...
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
@@ -41,7 +39,6 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login_page():
-    # ... (kod pozostaje bez zmian z Tygodnia 5) ...
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -104,6 +101,41 @@ def rent_car(car_id):
         
     conn.close()
     return render_template('rent.html', car=car)
+
+# tydzien 7(panel uzytkownika)
+@app.route('/dashboard')
+def dashboard():
+    if 'user_id' not in session:
+        flash('Musisz być zalogowany, aby zobaczyć swoje rezerwacje.', 'warning')
+        return redirect(url_for('login_page'))
+        
+    conn = get_db_connection()
+    rezerwacje = conn.execute('''
+        SELECT r.id, r.start_date, r.end_date, r.total_price, c.brand, c.model, c.year 
+        FROM reservations r
+        JOIN cars c ON r.car_id = c.id
+        WHERE r.user_id = ?
+        ORDER BY r.start_date DESC
+    ''', (session['user_id'],)).fetchall()
+    conn.close()
+    
+    # Obliczenie łącznej kwoty wszystkich rezerwacji użytkownika
+    suma_wydatkow = sum(r['total_price'] for r in rezerwacje)
+    
+    return render_template('dashboard.html', rezerwacje=rezerwacje, suma_wydatkow=suma_wydatkow)
+
+@app.route('/cancel/<int:res_id>', methods=['POST'])
+def cancel_reservation(res_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login_page'))
+        
+    conn = get_db_connection()
+    conn.execute("DELETE FROM reservations WHERE id = ? AND user_id = ?", (res_id, session['user_id']))
+    conn.commit()
+    conn.close()
+    
+    flash('Rezerwacja została pomyślnie anulowana.', 'info')
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)
