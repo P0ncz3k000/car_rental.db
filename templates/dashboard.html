@@ -2,14 +2,15 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Moje rezerwacje - Wypożyczalnia</title>
+    <title>Panel Użytkownika - Wypożyczalnia</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="bg-light">
     <!-- Górny pasek nawigacji -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/">Wypożyczalnia Aut</a>
+            <a class="navbar-brand fw-bold" href="/">Wypożyczalnia Aut</a>
             <div>
                 <span class="navbar-text me-3 text-white">
                     Witaj, <strong>{{ session['user_name'] }}</strong>!
@@ -20,7 +21,7 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container pb-5">
         <!-- Komunikaty flash -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -32,53 +33,223 @@
           {% endif %}
         {% endwith %}
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Moje rezerwacje</h1>
-            <div class="card bg-white shadow-sm px-4 py-2">
-                <span class="text-muted">Łączny koszt wynajmów:</span>
-                <strong class="fs-4 text-primary">{{ "%.2f"|format(suma_wydatkow) }} zł</strong>
+        {% if session.get('role') == 'admin' %}
+            <!-- ========================================== -->
+            <!-- WIDOK ADMINISTRATORA (ZARZĄDZANIE FLOTĄ)   -->
+            <!-- ========================================== -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Panel Administratora</h1>
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">Tryb Admina</span>
             </div>
-        </div>
 
-        {% if rezerwacje %}
-        <div class="card shadow-sm">
-            <div class="card-body p-0">
-                <table class="table table-striped table-hover mb-0 align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Samochód</th>
-                            <th>Rocznik</th>
-                            <th>Data odbioru</th>
-                            <th>Data zwrotu</th>
-                            <th>Koszt całkowity</th>
-                            <th class="text-end">Akcje</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in rezerwacje %}
-                        <tr>
-                            <td><strong>{{ r['brand'] }} {{ r['model'] }}</strong></td>
-                            <td>{{ r['year'] }}</td>
-                            <td>{{ r['start_date'] }}</td>
-                            <td>{{ r['end_date'] }}</td>
-                            <td><span class="badge bg-success fs-6">{{ "%.2f"|format(r['total_price']) }} zł</span></td>
-                            <td class="text-end">
-                                <form action="/cancel/{{ r['id'] }}" method="POST" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz anulować tę rezerwację?');">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Anuluj</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- 1. FORMULARZ DODAWANIA SAMOCHODU -->
+            <div class="card shadow-sm p-4 mb-5">
+                <h4 class="mb-3">Dodaj nowy samochód</h4>
+                <form action="{{ url_for('admin_dodaj_auto') }}" method="POST" enctype="multipart/form-data">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Marka</label>
+                            <input type="text" name="brand" class="form-control" placeholder="np. Audi" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Model</label>
+                            <input type="text" name="model" class="form-control" placeholder="np. A4 B8" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Rocznik</label>
+                            <input type="number" name="year" class="form-control" placeholder="2022" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Cena / dzień (zł)</label>
+                            <input type="number" step="0.01" name="price_per_day" class="form-control" placeholder="180" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="available">Dostępny</option>
+                                <option value="rented">Wypożyczony</option>
+                                <option value="service">Serwis</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Zdjęcie z dysku</label>
+                            <input type="file" name="image_file" class="form-control" accept="image/*">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Lub link URL do zdjęcia</label>
+                            <input type="text" name="image_url" class="form-control" placeholder="https://...">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">Dodaj samochód</button>
+                </form>
             </div>
-        </div>
+
+            <!-- 2. EDYCJA I USUWANIE ISTNIEJĄCYCH SAMOCHODÓW -->
+            <div class="card shadow-sm p-4 mb-5">
+                <h4 class="mb-3">Zarządzanie samochodami (Edytuj / Usuń)</h4>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Zdjęcie</th>
+                                <th>Marka</th>
+                                <th>Model</th>
+                                <th>Rok</th>
+                                <th>Cena/dzień</th>
+                                <th>Status</th>
+                                <th>Nowe zdjęcie (plik / URL)</th>
+                                <th class="text-end">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for auto in auta %}
+                            <tr>
+                                <form action="{{ url_for('admin_edytuj_auto', car_id=auto['id']) }}" method="POST" enctype="multipart/form-data">
+                                    <td>{{ auto['id'] }}</td>
+                                    <td>
+                                        {% if auto['image_url'] %}
+                                            <img src="{{ auto['image_url'] }}" style="width: 70px; height: 45px; object-fit: cover; border-radius: 6px;">
+                                        {% else %}
+                                            <span class="text-muted small">Brak</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><input type="text" name="brand" value="{{ auto['brand'] }}" class="form-control form-control-sm" required></td>
+                                    <td><input type="text" name="model" value="{{ auto['model'] }}" class="form-control form-control-sm" required></td>
+                                    <td style="width: 90px;"><input type="number" name="year" value="{{ auto['year'] }}" class="form-control form-control-sm" required></td>
+                                    <td style="width: 110px;"><input type="number" step="0.01" name="price_per_day" value="{{ auto['price_per_day'] }}" class="form-control form-control-sm" required></td>
+                                    <td>
+                                        <select name="status" class="form-select form-select-sm">
+                                            <option value="available" {% if auto['status'] == 'available' %}selected{% endif %}>Dostępny</option>
+                                            <option value="rented" {% if auto['status'] == 'rented' %}selected{% endif %}>Wypożyczony</option>
+                                            <option value="service" {% if auto['status'] == 'service' %}selected{% endif %}>Serwis</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="file" name="image_file" class="form-control form-control-sm mb-1" accept="image/*">
+                                        <input type="text" name="image_url" placeholder="Nowy URL..." class="form-control form-control-sm">
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <button type="submit" class="btn btn-primary btn-sm me-1">Zapisz</button>
+                                </form>
+                                        <form action="{{ url_for('admin_usun_auto', car_id=auto['id']) }}" method="POST" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć ten samochód?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Usuń</button>
+                                        </form>
+                                    </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. ZARZĄDZANIE REZERWACJAMI KLIENTÓW -->
+            <div class="card shadow-sm p-4">
+                <h4 class="mb-3">Wszystkie rezerwacje klientów</h4>
+                {% if rezerwacje %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Klient</th>
+                                <th>Samochód</th>
+                                <th>Od</th>
+                                <th>Do</th>
+                                <th>Kwota</th>
+                                <th>Status</th>
+                                <th>Zmień status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rezerwacje %}
+                            <tr>
+                                <td>#{{ r['id'] }}</td>
+                                <td>{{ r['user_email'] }}</td>
+                                <td><strong>{{ r['brand'] }} {{ r['model'] }}</strong> ({{ r['year'] }})</td>
+                                <td>{{ r['start_date'] }}</td>
+                                <td>{{ r['end_date'] }}</td>
+                                <td><span class="badge bg-success fs-6">{{ "%.2f"|format(r['total_price']) }} zł</span></td>
+                                <td><span class="badge bg-warning text-dark">{{ r['status'] or 'oczekująca' }}</span></td>
+                                <td>
+                                    <form action="{{ url_for('admin_status_rezerwacji', res_id=r['id']) }}" method="POST" class="d-flex gap-2">
+                                        <input type="hidden" name="car_id" value="{{ r['car_id'] }}">
+                                        <select name="status" class="form-select form-select-sm">
+                                            <option value="oczekująca" {% if r['status'] == 'oczekująca' %}selected{% endif %}>Oczekująca</option>
+                                            <option value="zatwierdzona" {% if r['status'] == 'zatwierdzona' %}selected{% endif %}>Zatwierdzona (zajmuje auto)</option>
+                                            <option value="w trakcie" {% if r['status'] == 'w trakcie' %}selected{% endif %}>W trakcie</option>
+                                            <option value="zakończona" {% if r['status'] == 'zakończona' %}selected{% endif %}>Zakończona (zwalnia auto)</option>
+                                            <option value="anulowana" {% if r['status'] == 'anulowana' %}selected{% endif %}>Anulowana (zwalnia auto)</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm">Aktualizuj</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p class="text-muted mb-0">Brak rezerwacji w systemie.</p>
+                {% endif %}
+            </div>
+
         {% else %}
-        <div class="alert alert-info text-center p-5 shadow-sm">
-            <h4>Nie masz jeszcze żadnych rezerwacji.</h4>
-            <p class="mb-3">Wybierz samochód z naszej oferty i zarezerwuj go na wybrany termin.</p>
-            <a href="/" class="btn btn-primary">Przeglądaj dostępne auta</a>
-        </div>
+            <!-- ========================================== -->
+            <!-- WIDOK ZWYKŁEGO KLIENTA (TWÓJ STARY KOD)    -->
+            <!-- ========================================== -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Moje rezerwacje</h1>
+                <div class="card shadow-sm px-4 py-2">
+                    <span class="text-muted">Łączny koszt wynajmów:</span>
+                    <strong class="fs-4">{{ "%.2f"|format(suma_wydatkow) }} zł</strong>
+                </div>
+            </div>
+
+            {% if rezerwacje %}
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Samochód</th>
+                                <th>Rocznik</th>
+                                <th>Data odbioru</th>
+                                <th>Data zwrotu</th>
+                                <th>Koszt całkowity</th>
+                                <th>Status</th>
+                                <th class="text-end">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rezerwacje %}
+                            <tr>
+                                <td><strong>{{ r['brand'] }} {{ r['model'] }}</strong></td>
+                                <td>{{ r['year'] }}</td>
+                                <td>{{ r['start_date'] }}</td>
+                                <td>{{ r['end_date'] }}</td>
+                                <td><span class="badge bg-success fs-6">{{ "%.2f"|format(r['total_price']) }} zł</span></td>
+                                <td><span class="badge bg-warning text-dark">{{ r['status'] or 'oczekująca' }}</span></td>
+                                <td class="text-end">
+                                    <form action="/cancel/{{ r['id'] }}" method="POST" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz anulować tę rezerwację?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Anuluj</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="card text-center p-5 shadow-sm">
+                <h4>Nie masz jeszcze żadnych rezerwacji.</h4>
+                <p class="mb-3">Wybierz samochód z naszej oferty i zarezerwuj go na wybrany termin.</p>
+                <div>
+                    <a href="/" class="btn btn-primary">Przeglądaj dostępne auta</a>
+                </div>
+            </div>
+            {% endif %}
         {% endif %}
     </div>
 </body>

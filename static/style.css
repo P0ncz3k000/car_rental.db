@@ -1,0 +1,97 @@
+/* Ciemnoszare / prawie czarne tło całej strony */
+html, body {
+    background-color: #121316 !important;
+    color: #f3f4f6 !important;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+}
+
+/* Nadpisanie ewentualnych jasnych klas Bootstrapa na kontenerach */
+.bg-light, .bg-white, main, .container, .container-fluid {
+    background-color: transparent !important;
+}
+
+/* Górny pasek nawigacji */
+.navbar, nav {
+    background-color: #0b0c0e !important;
+    border-bottom: 1px solid #262930;
+    padding: 12px 24px !important;
+}
+
+/* Nagłówki */
+h1, h2, h3, h4, h5 {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+/* Karty samochodów (lekko jaśniejsze od tła, żeby wyraźnie się odcinały) */
+.card {
+    background-color: #1b1d22 !important;
+    border: 1px solid #2c303a !important;
+    border-radius: 12px !important;
+    color: #f3f4f6 !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5) !important;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: #d4af37 !important;
+}
+
+/* Opisy (np. Rocznik) */
+.text-muted, small, p {
+    color: #9ca3af !important;
+}
+
+/* Cena */
+.card strong, .card b {
+    color: #ffffff !important;
+    font-size: 1.15rem;
+}
+
+/* Przycisk Wypożycz */
+.btn-primary {
+    background-color: #d4af37 !important;
+    border-color: #d4af37 !important;
+    color: #121316 !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+}
+
+.btn-primary:hover {
+    background-color: #eab308 !important;
+    border-color: #eab308 !important;
+}
+
+/* Przycisk Zarejestruj się */
+.btn-success {
+    background-color: transparent !important;
+    border: 1px solid #d4af37 !important;
+    color: #d4af37 !important;
+    font-weight: 600 !important;
+}
+
+.btn-success:hover {
+    background-color: #d4af37 !important;
+    color: #121316 !important;
+}
+
+/* Przycisk Zaloguj się */
+.btn-outline-light, .btn-dark {
+    background-color: #1b1d22 !important;
+    border-color: #373c47 !important;
+    color: #f3f4f6 !important;
+}
+
+/* Formularze na podstronach logowania/rejestracji */
+.form-control, .form-select {
+    background-color: #1b1d22 !important;
+    border: 1px solid #373c47 !important;
+    color: #ffffff !important;
+}
+
+.form-control:focus {
+    border-color: #d4af37 !important;
+    box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25) !important;
+}

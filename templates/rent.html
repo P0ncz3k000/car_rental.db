@@ -2,30 +2,50 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Wypożycz - {{ car['brand'] }}</title>
+    <title>Wypożycz - {{ car['brand'] }} {{ car['model'] }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="bg-light">
     <!-- Nawigacja -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/">Wypożyczalnia Aut</a>
-            <span class="navbar-text text-white">
-                Zalogowany jako: <strong>{{ session['user_name'] }}</strong>
-            </span>
+            <a class="navbar-brand fw-bold" href="/">Wypożyczalnia Aut</a>
+            <div>
+                <span class="navbar-text me-3 text-white">
+                    Zalogowany jako: <strong>{{ session['user_name'] }}</strong>
+                </span>
+                <a href="/dashboard" class="btn btn-outline-info btn-sm me-2">Panel</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Wyloguj</a>
+            </div>
         </div>
     </nav>
 
-    <div class="container col-md-5">
-        <div class="card shadow p-4 mt-5">
+    <div class="container col-md-5 pb-5">
+        <div class="card shadow p-4 mt-4">
             <h2 class="mb-4">Rezerwacja pojazdu</h2>
             
-            <!-- Szczegóły wybranego auta -->
-            <div class="alert alert-info">
-                <h4>{{ car['brand'] }} {{ car['model'] }}</h4>
-                <p class="mb-0">Rocznik: {{ car['year'] }}</p>
-                <p class="mb-0">Cena: <strong>{{ car['price_per_day'] }} zł / dzień</strong></p>
+            <!-- Szczegóły wybranego auta (pojedynczy kafelek) -->
+            <div class="card bg-dark text-white border-secondary p-3 mb-3">
+                {% if car['image_url'] %}
+                <img src="{{ car['image_url'] }}" alt="{{ car['brand'] }}" class="img-fluid rounded mb-3" style="max-height: 180px; width: 100%; object-fit: cover;">
+                {% endif %}
+                <h4 class="text-warning">{{ car['brand'] }} {{ car['model'] }}</h4>
+                <p class="mb-0 text-light">Rocznik: {{ car['year'] }}</p>
+                <p class="mb-0 text-light">Stawka: <strong>{{ "%.2f"|format(car['price_per_day']) }} zł / dzień</strong></p>
             </div>
+
+            <!-- Lista niedostępnych terminów -->
+            {% if zajete_terminy %}
+            <div class="card bg-dark text-white border-warning p-3 mb-3">
+                <strong class="d-block mb-1 text-warning">Niedostępne terminy dla tego auta:</strong>
+                <ul class="mb-0 ps-3 small text-light">
+                    {% for t in zajete_terminy %}
+                    <li>od <strong>{{ t['start_date'] }}</strong> do <strong>{{ t['end_date'] }}</strong></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
             
             {% with messages = get_flashed_messages(with_categories=true) %}
               {% if messages %}
@@ -39,16 +59,83 @@
             <form method="POST">
                 <div class="mb-3">
                     <label class="form-label">Data wypożyczenia (od):</label>
-                    <input type="date" name="start_date" class="form-control" required>
+                    <input type="date" id="start_date" name="start_date" class="form-control" required>
                 </div>
-                <div class="mb-4">
+                <div class="mb-3">
                     <label class="form-label">Data zwrotu (do):</label>
-                    <input type="date" name="end_date" class="form-control" required>
+                    <input type="date" id="end_date" name="end_date" class="form-control" required>
                 </div>
-                <button type="submit" class="btn btn-success w-100 mb-2">Zatwierdź i zapłać</button>
+
+                <!-- Dynamiczne podsumowanie kosztów -->
+                <div id="podsumowanie_box" class="card p-3 mb-4 border-warning" style="display: none;">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Liczba dni wynajmu:</span>
+                        <strong id="liczba_dni">0</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Do zapłaty łącznie:</span>
+                        <strong id="kwota_calkowita" class="fs-4 text-warning">0.00 zł</strong>
+                    </div>
+                </div>
+
+                <div id="blad_dat" class="alert alert-danger py-2 mb-3" style="display: none;">
+                    Data zwrotu musi być późniejsza niż data wypożyczenia!
+                </div>
+
+                <button type="submit" id="btn_zatwierdz" class="btn btn-success w-100 mb-2">Zatwierdź i zapłać</button>
                 <a href="/" class="btn btn-secondary w-100">Anuluj i wróć</a>
             </form>
         </div>
     </div>
+
+    <script>
+        const cenaZaDzien = parseFloat("{{ car['price_per_day'] }}");
+        const startInput = document.getElementById('start_date');
+        const endInput = document.getElementById('end_date');
+        const box = document.getElementById('podsumowanie_box');
+        const dniSpan = document.getElementById('liczba_dni');
+        const kwotaSpan = document.getElementById('kwota_calkowita');
+        const bladDat = document.getElementById('blad_dat');
+        const btnZatwierdz = document.getElementById('btn_zatwierdz');
+
+        // Ustawienie minimalnej daty na dzisiaj w kalendarzu
+        const dzis = new Date().toISOString().split('T')[0];
+        startInput.min = dzis;
+        endInput.min = dzis;
+
+        function przeliczKoszt() {
+            if (!startInput.value || !endInput.value) {
+                box.style.display = 'none';
+                bladDat.style.display = 'none';
+                return;
+            }
+
+            const start = new Date(startInput.value);
+            const end = new Date(endInput.value);
+            const roznicaMs = end - start;
+            const dni = Math.round(roznicaMs / (1000 * 60 * 60 * 24));
+
+            if (dni > 0) {
+                const suma = (dni * cenaZaDzien).toFixed(2);
+                dniSpan.textContent = dni + (dni === 1 ? ' dzień' : ' dni');
+                kwotaSpan.textContent = suma + ' zł';
+                box.style.display = 'block';
+                bladDat.style.display = 'none';
+                btnZatwierdz.disabled = false;
+            } else {
+                box.style.display = 'none';
+                bladDat.style.display = 'block';
+                btnZatwierdz.disabled = true;
+            }
+        }
+
+        startInput.addEventListener('change', () => {
+            if (startInput.value) {
+                endInput.min = startInput.value;
+            }
+            przeliczKoszt();
+        });
+        endInput.addEventListener('change', przeliczKoszt);
+    </script>
 </body>
 </html>
