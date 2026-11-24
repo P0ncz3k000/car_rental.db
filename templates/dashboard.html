@@ -49,21 +49,41 @@
                     <div class="row g-3">
                         <div class="col-md-3">
                             <label class="form-label">Marka</label>
-                            <input type="text" name="brand" class="form-control" placeholder="np. Audi" required>
+                            <input type="text" name="brand" class="form-control" placeholder="np. BMW" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Model</label>
-                            <input type="text" name="model" class="form-control" placeholder="np. A4 B8" required>
+                            <input type="text" name="model" class="form-control" placeholder="np. M3 Competition" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Rocznik</label>
-                            <input type="number" name="year" class="form-control" placeholder="2022" required>
+                            <input type="number" name="year" class="form-control" placeholder="2023" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Moc (KM)</label>
+                            <input type="number" name="horsepower" class="form-control" placeholder="510" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Cena / dzień (zł)</label>
-                            <input type="number" step="0.01" name="price_per_day" class="form-control" placeholder="180" required>
+                            <input type="number" step="0.01" name="price_per_day" class="form-control" placeholder="450" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
+                            <label class="form-label">Skrzynia biegów</label>
+                            <select name="transmission" class="form-select">
+                                <option value="Automatyczna">Automatyczna</option>
+                                <option value="Manualna">Manualna</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Rodzaj paliwa</label>
+                             <select name="fuel_type" class="form-select">
+                                 <option value="Benzyna">Benzyna</option>
+                                <option value="Diesel">Diesel</option>
+                                 <option value="Elektryczny">Elektryczny</option>
+                                 <option value="Benzyna+Elektryczny">Benzyna+Elektryczny</option>
+                             </select>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label">Status</label>
                             <select name="status" class="form-select">
                                 <option value="available">Dostępny</option>
@@ -71,11 +91,11 @@
                                 <option value="service">Serwis</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <label class="form-label">Zdjęcie z dysku</label>
                             <input type="file" name="image_file" class="form-control" accept="image/*">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <label class="form-label">Lub link URL do zdjęcia</label>
                             <input type="text" name="image_url" class="form-control" placeholder="https://...">
                         </div>
@@ -96,6 +116,9 @@
                                 <th>Marka</th>
                                 <th>Model</th>
                                 <th>Rok</th>
+                                <th>Moc (KM)</th>
+                                <th>Skrzynia</th>
+                                <th>Paliwo</th>
                                 <th>Cena/dzień</th>
                                 <th>Status</th>
                                 <th>Nowe zdjęcie (plik / URL)</th>
@@ -109,15 +132,30 @@
                                     <td>{{ auto['id'] }}</td>
                                     <td>
                                         {% if auto['image_url'] %}
-                                            <img src="{{ auto['image_url'] }}" style="width: 70px; height: 45px; object-fit: cover; border-radius: 6px;">
+                                            <img src="{{ auto['image_url'] }}" style="width: 65px; height: 42px; object-fit: cover; border-radius: 6px;">
                                         {% else %}
                                             <span class="text-muted small">Brak</span>
                                         {% endif %}
                                     </td>
                                     <td><input type="text" name="brand" value="{{ auto['brand'] }}" class="form-control form-control-sm" required></td>
                                     <td><input type="text" name="model" value="{{ auto['model'] }}" class="form-control form-control-sm" required></td>
-                                    <td style="width: 90px;"><input type="number" name="year" value="{{ auto['year'] }}" class="form-control form-control-sm" required></td>
-                                    <td style="width: 110px;"><input type="number" step="0.01" name="price_per_day" value="{{ auto['price_per_day'] }}" class="form-control form-control-sm" required></td>
+                                    <td style="width: 85px;"><input type="number" name="year" value="{{ auto['year'] }}" class="form-control form-control-sm" required></td>
+                                    <td style="width: 85px;"><input type="number" name="horsepower" value="{{ auto['horsepower'] or 150 }}" class="form-control form-control-sm" required></td>
+                                    <td>
+                                        <select name="transmission" class="form-select form-select-sm">
+                                            <option value="Automatyczna" {% if auto['transmission'] == 'Automatyczna' %}selected{% endif %}>Automatyczna</option>
+                                            <option value="Manualna" {% if auto['transmission'] == 'Manualna' %}selected{% endif %}>Manualna</option>
+                                        </select>
+                                    </td>
+                                <td>
+                                        <select name="fuel_type" class="form-select form-select-sm">
+                                            <option value="Benzyna" {% if auto['fuel_type'] == 'Benzyna' %}selected{% endif %}>Benzyna</option>
+                                            <option value="Diesel" {% if auto['fuel_type'] == 'Diesel' %}selected{% endif %}>Diesel</option>
+                                            <option value="Elektryczny" {% if auto['fuel_type'] == 'Elektryczny' %}selected{% endif %}>Elektryczny</option>
+                                             <option value="Benzyna+Elektryczny" {% if auto['fuel_type'] == 'Benzyna+Elektryczny' %}selected{% endif %}>Benzyna+Elektryczny</option>
+                                            </select>
+                                    </td>   
+                                    <td style="width: 100px;"><input type="number" step="0.01" name="price_per_day" value="{{ auto['price_per_day'] }}" class="form-control form-control-sm" required></td>
                                     <td>
                                         <select name="status" class="form-select form-select-sm">
                                             <option value="available" {% if auto['status'] == 'available' %}selected{% endif %}>Dostępny</option>
@@ -196,7 +234,7 @@
 
         {% else %}
             <!-- ========================================== -->
-            <!-- WIDOK ZWYKŁEGO KLIENTA (TWÓJ STARY KOD)    -->
+            <!-- WIDOK ZWYKŁEGO KLIENTA                     -->
             <!-- ========================================== -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1>Moje rezerwacje</h1>

@@ -2,34 +2,38 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Wypożyczalnia Samochodów</title>
+    <title>Wypożyczalnia Samochodów Premium</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="bg-light">
-    <!-- Górny pasek z warunkowym przyciskiem -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+<body>
+    <!-- Nawigacja -->
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top mb-4">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="/">Wypożyczalnia Aut</a>
-            <div>
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-car-front-fill text-warning me-2"></i>Drive<span>Elite</span>
+            </a>
+            <div class="d-flex align-items-center gap-2">
                 {% if session.get('user_name') %}
-                    <span class="navbar-text me-3 text-white">
-                        Witaj, <strong>{{ session['user_name'] }}</strong>!
+                    <span class="navbar-text me-2 text-light d-none d-md-inline">
+                        Witaj, <strong>{{ session['user_name'] }}</strong>
                     </span>
-                    <a href="/dashboard" class="btn btn-outline-info me-2">
+                    <a href="/dashboard" class="btn btn-outline-gold btn-sm">
+                        <i class="bi bi-speedometer2 me-1"></i>
                         {% if session.get('role') == 'admin' %}Panel Admina{% else %}Moje rezerwacje{% endif %}
                     </a>
-                    <a href="/logout" class="btn btn-outline-danger">Wyloguj się</a>
+                    <a href="/logout" class="btn btn-outline-danger btn-sm">Wyloguj</a>
                 {% else %}
-                    <a href="/login" class="btn btn-outline-light me-2">Zaloguj się</a>
-                    <a href="/register" class="btn btn-success">Zarejestruj się</a>
+                    <a href="/login" class="btn btn-outline-light btn-sm">Zaloguj się</a>
+                    <a href="/register" class="btn btn-gold btn-sm">Zarejestruj się</a>
                 {% endif %}
             </div>
         </div>
     </nav>
 
     <div class="container pb-5">
-        <!-- Komunikaty systemowe po przejściach -->
+        <!-- Komunikaty systemowe -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -40,26 +44,159 @@
           {% endif %}
         {% endwith %}
 
-        <h1 class="mb-4">Dostępne samochody</h1>
-        <div class="row">
+        <!-- Baner powitalny -->
+        <div class="hero-banner">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <span class="badge bg-warning text-dark mb-2 px-3 py-2 rounded-pill fw-bold">FLOTA 2026 • BEZ UKRYTYCH KOSZTÓW</span>
+                    <h1 class="display-6 fw-bold mb-2">Wybierz auto dopasowane do Twojej trasy</h1>
+                    <p class="text-muted mb-0">Od zwinnych aut miejskich i rodzinnych SUV-ów po sportowe jednostki o mocy ponad 500 KM. Rezerwacja online w 60 sekund.</p>
+                </div>
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <div class="d-inline-block text-start p-3 rounded-4" style="background: rgba(255,255,255,0.03); border: 1px solid #282c37;">
+                        <div class="small text-muted">Dostępnych modeli w ofercie</div>
+                        <div class="fs-2 fw-bold text-warning">{{ auta|length }} <span class="fs-6 text-light fw-normal">pojazdów</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pasek wyszukiwania i filtrowania na żywo -->
+        <div class="filter-bar">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-warning"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Szukaj marki lub modelu (np. BMW, Octavia)...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="fuelFilter" class="form-select">
+                        <option value="">Wszystkie rodzaje paliwa</option>
+                        <option value="Benzyna">Benzyna</option>
+                        <option value="Diesel">Diesel</option>
+                        <option value="Elektryczny">Elektryczny</option>
+                        <option value="Benzyna+Elektryczny">Benzyna+Elektryczny</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select id="transFilter" class="form-select">
+                        <option value="">Każda skrzynia</option>
+                        <option value="Automatyczna">Automatyczna</option>
+                        <option value="Manualna">Manualna</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button id="resetFilters" class="btn btn-outline-light w-100">Wyczyść filtry</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Siatka samochodów -->
+        <div class="row" id="carsGrid">
             {% for auto in auta %}
-            <div class="col-md-4 mb-4">
-                <div class="card shadow-sm h-100">
-                    {% if auto['image_url'] %}
-                    <img src="{{ auto['image_url'] }}" class="card-img-top" alt="{{ auto['brand'] }} {{ auto['model'] }}" style="height: 200px; object-fit: cover; border-top-left-radius: 12px; border-top-right-radius: 12px;" onerror="this.style.display='none'">
-                    {% endif %}
-                    <div class="card-body d-flex flex-column justify-content-between">
+            <div class="col-md-6 col-lg-4 mb-4 car-item"
+                 data-name="{{ (auto['brand'] ~ ' ' ~ auto['model'])|lower }}"
+                 data-fuel="{{ auto['fuel_type'] or 'Benzyna' }}"
+                 data-trans="{{ auto['transmission'] or 'Manualna' }}">
+                <div class="card car-card h-100">
+                    <div class="car-img-wrapper">
+                        {% if auto['image_url'] %}
+                        <img src="{{ auto['image_url'] }}" alt="{{ auto['brand'] }} {{ auto['model'] }}" onerror="this.style.display='none'">
+                        {% endif %}
+                        <span class="year-pill"><i class="bi bi-calendar3 text-warning me-1"></i>{{ auto['year'] }}</span>
+                    </div>
+
+                    <div class="card-body d-flex flex-column justify-content-between p-4">
                         <div>
-                            <h5 class="card-title">{{ auto['brand'] }} {{ auto['model'] }}</h5>
-                            <p class="card-text text-muted">Rocznik: {{ auto['year'] }}</p>
-                            <p class="card-text fs-5">Cena: <strong>{{ auto['price_per_day'] }} zł/dzień</strong></p>
+                            <h4 class="card-title mb-3">{{ auto['brand'] }} {{ auto['model'] }}</h4>
+
+                            <!-- Równy 3-kolumnowy pasek parametrów -->
+                            <div class="specs-grid mb-3">
+                                <div class="specs-item">
+                                    <i class="bi bi-lightning-charge-fill text-warning fs-5 mb-1"></i>
+                                    <span class="specs-value">{{ auto['horsepower'] or 150 }} KM</span>
+                                </div>
+                                <div class="specs-item">
+                                    <i class="bi bi-gear-fill text-warning fs-5 mb-1"></i>
+                                    <span class="specs-value">{{ auto['transmission'] or 'Manualna' }}</span>
+                                </div>
+                                <div class="specs-item">
+                                    <i class="bi bi-fuel-pump-fill text-warning fs-5 mb-1"></i>
+                                    <span class="specs-value">{{ auto['fuel_type'] or 'Benzyna' }}</span>
+                                </div>
+                            </div>
                         </div>
-                        <a href="/rent/{{ auto['id'] }}" class="btn btn-primary w-100 mt-3">Wypożycz</a>
+
+                        <div class="pt-2 border-top border-secondary border-opacity-25">
+                            <div class="d-flex justify-content-between align-items-baseline mb-3">
+                                <span class="text-muted small">Cena za dobę</span>
+                                <div>
+                                    <strong class="fs-4 text-warning">{{ "%.0f"|format(auto['price_per_day']) }} zł</strong>
+                                    <span class="text-muted small">/ dzień</span>
+                                </div>
+                            </div>
+
+                            <a href="/rent/{{ auto['id'] }}" class="btn btn-gold w-100">
+                                {% if session.get('user_id') %}
+                                    <i class="bi bi-calendar-check me-1"></i> Wybierz termin
+                                {% else %}
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Zaloguj się, aby wypożyczyć
+                                {% endif %}
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
+
+        <div id="noResults" class="text-center py-5" style="display: none;">
+            <i class="bi bi-search fs-1 text-warning d-block mb-2"></i>
+            <h4>Brak samochodów spełniających kryteria</h4>
+            <p class="text-muted">Zmień wybrane filtry lub wyczyść wyszukiwanie.</p>
+        </div>
     </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const fuelFilter = document.getElementById('fuelFilter');
+        const transFilter = document.getElementById('transFilter');
+        const resetBtn = document.getElementById('resetFilters');
+        const items = document.querySelectorAll('.car-item');
+        const noResults = document.getElementById('noResults');
+
+        function filterCars() {
+            const q = searchInput.value.toLowerCase().trim();
+            const fuel = fuelFilter.value;
+            const trans = transFilter.value;
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const matchName = item.dataset.name.includes(q);
+                const matchFuel = !fuel || item.dataset.fuel === fuel;
+                const matchTrans = !trans || item.dataset.trans === trans;
+
+                if (matchName && matchFuel && matchTrans) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        searchInput.addEventListener('input', filterCars);
+        fuelFilter.addEventListener('change', filterCars);
+        transFilter.addEventListener('change', filterCars);
+        resetBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            fuelFilter.value = '';
+            transFilter.value = '';
+            filterCars();
+        });
+    </script>
 </body>
 </html>

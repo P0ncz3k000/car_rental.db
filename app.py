@@ -14,7 +14,19 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 def odswiez_statusy(conn):
+    for kolumna in [
+        "ALTER TABLE cars ADD COLUMN horsepower INTEGER DEFAULT 150",
+        "ALTER TABLE cars ADD COLUMN transmission TEXT DEFAULT 'Manualna'",
+        "ALTER TABLE cars ADD COLUMN fuel_type TEXT DEFAULT 'Benzyna'"
+    ]:
+        try:
+            conn.execute(kolumna)
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
+
     dzis = datetime.now().strftime('%Y-%m-%d')
     przeterminowane = conn.execute('''
         SELECT id, car_id FROM reservations
@@ -33,7 +45,7 @@ def strona_glowna():
     conn = get_db_connection()
     odswiez_statusy(conn)
     auta = conn.execute(
-        "SELECT id, brand, model, year, price_per_day, image_url, status FROM cars WHERE status != 'service'"
+        "SELECT id, brand, model, year, price_per_day, image_url, status, horsepower, transmission, fuel_type FROM cars WHERE status != 'service'"
     ).fetchall()
     conn.close()
     return render_template('index.html', auta=auta)
@@ -71,7 +83,7 @@ def login_page():
             session['user_role'] = user['role']
             session['role'] = user['role']
             if user['email'] == 'admin@gmail.com':
-                 session['role'] = 'admin'
+                session['role'] = 'admin'
             flash(f"Zalogowano pomyślnie. Witaj {user['name']}!", 'success')
             return redirect(url_for('strona_glowna'))
         else:
@@ -84,7 +96,6 @@ def logout():
     flash('Zostałeś pomyślnie wylogowany.', 'info')
     return redirect(url_for('strona_glowna'))
 
-# NOWA FUNKCJA: Obsługa rezerwacji
 @app.route('/rent/<int:car_id>', methods=['GET', 'POST'])
 def rent_car(car_id):
     if 'user_id' not in session:
@@ -99,7 +110,6 @@ def rent_car(car_id):
         flash('Wybrany samochód jest obecnie niedostępny.', 'danger')
         return redirect(url_for('strona_glowna'))
 
-    # Pobranie wszystkich aktywnych rezerwacji tego auta, żeby pokazać klientowi zajęte daty
     zajete_terminy = conn.execute('''
         SELECT start_date, end_date FROM reservations
         WHERE car_id = ?
@@ -126,7 +136,6 @@ def rent_car(car_id):
             conn.close()
             return redirect(url_for('rent_car', car_id=car_id))
 
-        # Blokada nakładających się terminów
         kolizja = conn.execute('''
             SELECT id FROM reservations
             WHERE car_id = ?
@@ -153,7 +162,6 @@ def rent_car(car_id):
     conn.close()
     return render_template('rent.html', car=car, zajete_terminy=zajete_terminy)
 
-# tydzien 7(panel uzytkownika)
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
@@ -161,7 +169,7 @@ def dashboard():
         return redirect(url_for('login_page'))
 
     conn = get_db_connection()
-    # Automatyczne dodanie kolumny 'status' do rezerwacji, jeśli jeszcze jej nie ma
+    odswiez_statusy(conn)
     try:
         conn.execute("ALTER TABLE reservations ADD COLUMN status TEXT DEFAULT 'oczekująca'")
         conn.commit()
@@ -190,7 +198,6 @@ def dashboard():
     ''', (session['user_id'],)).fetchall()
     conn.close()
 
-    # Obliczenie łącznej kwoty wszystkich rezerwacji użytkownika
     suma_wydatkow = sum(r['total_price'] for r in rezerwacje)
 
     return render_template('dashboard.html', rezerwacje=rezerwacje, suma_wydatkow=suma_wydatkow)
@@ -210,6 +217,7 @@ def cancel_reservation(res_id):
     
     flash('Rezerwacja została pomyślnie anulowana.', 'info')
     return redirect(url_for('dashboard'))
+
 def zapisz_zdjecie(file):
     if file and file.filename != '':
         filename = secure_filename(file.filename)
@@ -229,13 +237,16 @@ def admin_dodaj_auto():
     year = request.form['year']
     price_per_day = request.form['price_per_day']
     status = request.form.get('status', 'available')
+    horsepower = request.form.get('horsepower') or 150
+    transmission = request.form.get('transmission', 'Manualna')
+    fuel_type = request.form.get('fuel_type', 'Benzyna')
 
     image_url = zapisz_zdjecie(request.files.get('image_file')) or request.form.get('image_url', '').strip()
 
     conn = get_db_connection()
     conn.execute(
-        'INSERT INTO cars (brand, model, year, price_per_day, status, image_url) VALUES (?, ?, ?, ?, ?, ?)',
-        (brand, model, year, price_per_day, status, image_url)
+        'INSERT INTO cars (brand, model, year, price_per_day, status, image_url, horsepower, transmission, fuel_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        (brand, model, year, price_per_day, status, image_url, horsepower, transmission, fuel_type)
     )
     conn.commit()
     conn.close()
@@ -252,19 +263,22 @@ def admin_edytuj_auto(car_id):
     year = request.form['year']
     price_per_day = request.form['price_per_day']
     status = request.form['status']
+    horsepower = request.form.get('horsepower') or 150
+    transmission = request.form.get('transmission', 'Manualna')
+    fuel_type = request.form.get('fuel_type', 'Benzyna')
 
     nowe_zdjecie = zapisz_zdjecie(request.files.get('image_file')) or request.form.get('image_url', '').strip()
 
     conn = get_db_connection()
     if nowe_zdjecie:
         conn.execute(
-            'UPDATE cars SET brand=?, model=?, year=?, price_per_day=?, status=?, image_url=? WHERE id=?',
-            (brand, model, year, price_per_day, status, nowe_zdjecie, car_id)
+            'UPDATE cars SET brand=?, model=?, year=?, price_per_day=?, status=?, image_url=?, horsepower=?, transmission=?, fuel_type=? WHERE id=?',
+            (brand, model, year, price_per_day, status, nowe_zdjecie, horsepower, transmission, fuel_type, car_id)
         )
     else:
         conn.execute(
-            'UPDATE cars SET brand=?, model=?, year=?, price_per_day=?, status=? WHERE id=?',
-            (brand, model, year, price_per_day, status, car_id)
+            'UPDATE cars SET brand=?, model=?, year=?, price_per_day=?, status=?, horsepower=?, transmission=?, fuel_type=? WHERE id=?',
+            (brand, model, year, price_per_day, status, horsepower, transmission, fuel_type, car_id)
         )
     conn.commit()
     conn.close()
